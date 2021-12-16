@@ -11,6 +11,7 @@ class Spacecraft():
         self.encode_genome()
         self.size = radius
         self.fitness = 0
+        self.isLiving = 1
         
     def encode_genome(self):
         for index, chromosome in enumerate(self.genome):
@@ -35,9 +36,11 @@ class Universe():
         
     def screen_init(self, display_size, frame_rate):
         pygame.init()
+        self.display_size = display_size
         self.screen = pygame.display.set_mode(display_size)
         self.clock = pygame.time.Clock()
         self.frame_rate = frame_rate #Hz
+        self.colormap = [(255, 0, 0), (255, 255, 255)]
         
     def draw(self, loc):
         self.screen.fill((0, 0, 0))
@@ -46,7 +49,7 @@ class Universe():
             pygame.draw.circle(self.screen, (0, 0, 255), (i.position[0]/self.scale, i.position[1]/self.scale), i.radius/self.scale)
         
         for j in self.sc:
-            pygame.draw.circle(self.screen, (255, 255, 255), (j.position[0]/self.scale, j.position[1]/self.scale), j.size/self.scale)
+            pygame.draw.circle(self.screen, self.colormap[j.isLiving], (j.position[0]/self.scale, j.position[1]/self.scale), j.size/self.scale)
         
         pygame.draw.circle(self.screen, (255, 0, 0), (self.goal[0]/self.scale, self.goal[1]/self.scale), 2)
         pygame.draw.circle(self.screen, (0, 255, 0), (loc[0]/self.scale, loc[1]/self.scale), 2)
@@ -60,7 +63,6 @@ class Universe():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: sys.exit()
             
-            #talk about this
             deltat = self.clock.tick(self.frame_rate)
             total_time += deltat/1000
             
@@ -73,6 +75,22 @@ class Universe():
                                 
                 sc.rd += (rdd*deltat*self.t_scale)/1000.0
                 sc.position += sc.rd*deltat*self.t_scale
+                
+                if sc.isLiving == 1:
+                    #determine off-screen
+                    #print(sc.position/self.scale)
+                    if sc.position[0]/self.scale < -0.5*self.display_size[0] or sc.position[0]/self.scale > 1.5*self.display_size[0]:
+                        sc.isLiving = 0
+                    
+                    if sc.position[1]/self.scale < -0.5*self.display_size[1] or sc.position[1]/self.scale > 1.5*self.display_size[1]:
+                        sc.isLiving = 0
+                    #determine in planet
+                    for planet in self.p:
+                        r = planet.position - sc.position
+                        r_mag = np.hypot(r[0], r[1])
+                        #print(r_mag, planet.radius, sc.isLiving)
+                        if r_mag < planet.radius:
+                            sc.isLiving = 0
                 
                 sc_fitness = 1/np.hypot(sc.position[0]-self.goal[0], sc.position[1]-self.goal[1])
                 if sc_fitness > sc.fitness:
@@ -104,6 +122,7 @@ class GeneticAlgorithm():
         self.mutation_rate = rm
         
     def random_population(self):
+        self.chromosomes = []
         for i in range(0, self.population_size):
             #randoma = self.bg.random_raw(1)
             #randomb = bin(randoma[0])
@@ -133,36 +152,46 @@ class GeneticAlgorithm():
         
     def generate_population(self, parents):
         new_genome = []
-        
-        for i in range(0, self.population_size):
-            sample_parents = parents.copy()
-            parent1, index = self.select_parent(sample_parents)
-            sample_parents.pop(index)
-            parent2, index = self.select_parent(sample_parents)
-            
-            cross_index0 = int(self.rnd.random()*len(parent1.genome[0]))
-            cross_index1 = int(self.rnd.random()*len(parent1.genome[1]))
+        index_list = []
+        for sc in parents:
+            if sc.isLiving == 0:
+                index_list.append(parents.index(sc))
+        index_list.sort()
+        index_list.reverse()
+        for i in index_list:
+            parents.pop(i)
+        if len(parents) < 2:
+            self.random_population()
+        else:
+            for i in range(0, self.population_size):
+                sample_parents = parents.copy()
+                parent1, index = self.select_parent(sample_parents)
+                sample_parents.pop(index)
+                parent2, index = self.select_parent(sample_parents)
                 
-            newx = parent1.genome[0][:cross_index0] + parent2.genome[0][cross_index0:]
-            newy = parent1.genome[1][:cross_index1] + parent2.genome[1][cross_index1:]
+                cross_index0 = int(self.rnd.random()*len(parent1.genome[0]))
+                cross_index1 = int(self.rnd.random()*len(parent1.genome[1]))
+                    
+                newx = parent1.genome[0][:cross_index0] + parent2.genome[0][cross_index0:]
+                newy = parent1.genome[1][:cross_index1] + parent2.genome[1][cross_index1:]
+                
+                for j in range(0, len(newx)):
+                    if self.rnd.random() < self.mutation_rate:
+                        if newx[j]:
+                            newx = newx[:j] + '0' + newx[j+1:]
+                        else:
+                            newx = newx[:j] + '1' + newx[j+1:]
+                            
+                for j in range(0, len(newy)):
+                    if self.rnd.random() < self.mutation_rate:
+                        if newy[j]:
+                            newy = newy[:j] + '0' + newy[j+1:]
+                        else:
+                            newy = newy[:j] + '1' + newy[j+1:]
+                
+                new_genome.append([newx, newy])
             
-            for j in range(0, len(newx)):
-                if self.rnd.random() < self.mutation_rate:
-                    if newx[j]:
-                        newx = newx[:j] + '0' + newx[j+1:]
-                    else:
-                        newx = newx[:j] + '1' + newx[j+1:]
-                        
-            for j in range(0, len(newy)):
-                if self.rnd.random() < self.mutation_rate:
-                    if newy[j]:
-                        newy = newy[:j] + '0' + newy[j+1:]
-                    else:
-                        newy = newy[:j] + '1' + newy[j+1:]
-            
-            new_genome.append([newx, newy])
-        
-        self.chromosomes = new_genome.copy() 
+            self.chromosomes = new_genome.copy() 
         
     def calculate(self):
         self.random_population()
@@ -180,8 +209,8 @@ def start():
     resolution = [800, 600]
     frame_rate = 60 #Hz
     xy_scale = 50.0
-    timescale = 1.0
-    sim_duration = 15
+    timescale = 3.0
+    sim_duration = 15/timescale
     initial_location = [600*xy_scale, 300*xy_scale]
     desired_location = [100*xy_scale, 300*xy_scale]
     mutation_rate = 0.03
@@ -190,7 +219,7 @@ def start():
     TheVerse.screen_init(resolution, frame_rate)
     TheVerse.add_planet(Planet(400*xy_scale, 300*xy_scale, 3.986e14, 6371))
     
-    GA = GeneticAlgorithm(TheVerse, 5, 100, initial_location, mutation_rate)
+    GA = GeneticAlgorithm(TheVerse, 10, 100, initial_location, mutation_rate)
     
     GA.calculate() 
     
