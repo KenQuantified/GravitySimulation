@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<simulation_configuration>
+	<display_config>
+		<resolution>
+			<x>800</x>
+			<y>600</y>
+		</resolution>
+		<framerate>60</framerate>
+		<timescale>3.0</timescale>
+		<xyscale>50</xyscale>
+	</display_config>
+	<ga_config>
+		<generations>10</generations>
+		<population>100</population>
+		<mutation_rate>0.03</mutation_rate>
+		<initial_location>
+			<x_location>30000</x_location>
+			<y_location>15000</y_location>
+		</initial_location>
+	</ga_config>
+	<universe_config>
+		<duration>5</duration>
+		<desired_location>
+			<x_location>5000</x_location>
+			<y_location>15000</y_location>
+		</desired_location>
+		<planet>
+			<size>6371</size>
+			<gravity>3.986e14</gravity>
+			<location>
+				<x_location>20000</x_location>
+				<y_location>15000</y_location>
+			</location>
+		</planet>
+	</universe_config>
+</simulation_configuration>
